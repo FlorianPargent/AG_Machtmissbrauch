@@ -1,0 +1,70 @@
+---
+title: "Auswertung Umfrage Mittelbau der AG Machtmissbrauch"
+author: "AG Machtmissbrauch"
+date: today
+format:
+  html:
+    embed-resources: true
+    page-layout: full
+execute: 
+  echo: false
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(readxl)
+library(gt)
+library(gtsummary)
+```
+
+```{r}
+cnames <- read_excel("Daten_Umfrage.xlsx", n_max = 0) %>% colnames()
+clabels <- read_excel("Daten_Umfrage.xlsx", range = "A2:DM2") %>% colnames()
+dat_labels <- read_excel("Daten_Umfrage.xlsx", n_max = 1)
+dat <- read_excel("Daten_Umfrage.xlsx", skip = 2, col_names = cnames)
+dat <- dat %>% rename(Geschlecht = SD01, Rolle = SD02)
+
+dat_items <- dat %>% 
+  select(7:92) %>%
+  pivot_longer(everything(), names_to = "Item", values_to = "response") %>%
+  na.omit() 
+dat_item_labels <- dat_labels %>% select(7:92) %>%
+  pivot_longer(everything(), names_to = "Item", values_to = "Label")
+```
+
+# Teilnehmer:innen
+
+```{r}
+dat %>% tbl_summary(include = c(Geschlecht, Rolle))
+```
+
+# Wichtigkeit der Maßnahmen
+
+```{r}
+dat_sum <- dat_items %>%
+  group_by(Item) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5))
+dat_item_labels %>% left_join(dat_sum, by = "Item") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive() %>%
+  cols_width(Label ~ px(500))
+```
+
