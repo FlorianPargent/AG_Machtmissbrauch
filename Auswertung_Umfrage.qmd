@@ -25,6 +25,9 @@ dat_labels <- read_excel("Daten_Umfrage.xlsx", n_max = 1)
 dat <- read_excel("Daten_Umfrage.xlsx", skip = 2, col_names = cnames)
 dat <- dat %>% rename(Geschlecht = SD01, Rolle = SD02)
 
+dat$Geschlecht <- factor(dat$Geschlecht, levels = c(1, 2, 3, 4, -9), labels = c("männlich", "weiblich", "divers", "ich möchte keine Angabe machen", "nicht beantwortet"))
+dat$Rolle <- factor(dat$Rolle, levels = c(1, 2, 3, -9), labels = c("Studierende:r", "Promovierende:r", "Post Doc/Akademische:r Rät:in", "nicht beantwortet"))
+
 dat_items <- dat %>% 
   select(7:92) %>%
   pivot_longer(everything(), names_to = "Item", values_to = "response") %>%
@@ -40,6 +43,8 @@ dat %>% tbl_summary(include = c(Geschlecht, Rolle))
 ```
 
 # Wichtigkeit der Maßnahmen
+
+## Für alle Teilnehmer:innen
 
 ```{r}
 dat_sum <- dat_items %>%
@@ -64,7 +69,8 @@ dat_item_labels %>% left_join(dat_sum, by = "Item") %>%
   cols_label(Keine_Aussage = "Enthaltung",
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
-  opt_interactive() %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
   cols_width(Label ~ px(500))
 ```
+
 
