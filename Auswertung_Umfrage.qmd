@@ -1,6 +1,6 @@
 ---
-title: "Auswertung Umfrage Mittelbau der AG Machtmissbrauch"
-author: "AG Machtmissbrauch"
+title: "Auswertung der Umfrage der AG Machtmissbrauch"
+author: "Florian Pargent im Auftrag der AG Machtmissbrauch"
 date: today
 format:
   html:
@@ -16,99 +16,63 @@ library(tidyverse)
 library(readxl)
 library(gt)
 library(gtsummary)
-library(reactable)
-library(reactablefmtr)
-library(sparkline)
 ```
 
 ```{r}
+# load item labels
 cnames <- read_excel("Daten_Umfrage.xlsx", n_max = 0) %>% colnames()
-#clabels <- read_excel("Daten_Umfrage.xlsx", range = "A2:DM2") %>% colnames()
 dat_labels <- read_excel("Daten_Umfrage.xlsx", n_max = 1)
 dat_labels <- dat_labels %>% rename(Geschlecht = SD01, Rolle = SD02)
 
+# load main dataset
 dat <- read_excel("Daten_Umfrage.xlsx", skip = 2, col_names = cnames)
+# rename variables
 dat <- dat %>% rename(Geschlecht = SD01, Rolle = SD02)
-
 dat$Geschlecht <- factor(dat$Geschlecht, levels = c(1, 2, 3, 4, -9), labels = c("männlich", "weiblich", "divers", "ich möchte keine Angabe machen", "nicht beantwortet"))
 dat$Rolle <- factor(dat$Rolle, levels = c(1, 2, 3, -9), labels = c("Studierende:r", "Promovierende:r", "Post Doc/Akademische:r Rät:in", "nicht beantwortet"))
 
+# remove all persons who have not at least responded to one item
 dat <- dat %>%
   filter(if_any(P101_01:Q201_08, ~ !is.na(.x)))
   
-
+# create long format
 dat_long <- dat %>% 
   select(P101_01:Q201_08, Geschlecht, Rolle) %>%
   pivot_longer(P101_01:Q201_08, names_to = "Item", values_to = "response") %>%
   na.omit() %>%
   left_join(dat_labels %>% pivot_longer(everything(), names_to = "Item", values_to = "Label"), by = "Item")
-
-# dat_items <- dat %>% 
-#   select(P101_01:Q201_08, Geschlecht, Rolle) %>%
-#   pivot_longer(P101_01:Q201_08, names_to = "Item", values_to = "response") %>%
-#   na.omit() 
-# dat_item_labels <- dat_labels %>% select(P101_01:Q201_08, Geschlecht, Rolle) %>%
-#   pivot_longer(everything(), names_to = "Item", values_to = "Label")
 ```
 
-# Teilnehmer:innen
+## Befragung des Mittelbaus durch die AG Machtmissbrauch
+
+Die AG Machtmissbrauch hat im Zeitraum vom 16.10.2023 bis 28.10.2023 den Mittelbau des Departments Psychologie der Ludwig-Maximilians-Universität München befragt. In der Umfrage wurden die Teilnehmer:innen gebeten die Wichtigkeit potenzieller Maßnahmen zur Verbesserung des Wissenschaftsbetriebs hinsichtlich der Themen Anreizsysteme, Machtmissbruach und wissenschaftliches Fehlverhalten zu bewerten.
+
+Die in der Umfrage aufgelisteten Maßnahmen wurden dem [Bericht der Kommission Anreizsystem, Machtmissbrauch und wissenschaftliches Fehlverhalten der DPGs](https://www.dgps.de/fileadmin/user_upload/PDF/Berichte/Bericht_AMWF20230626.pdf) entnommen.
+Im Folgenden finden Sie eine Auswertung der Ergebnisse der Befragung.
+
+## Teilnehmer:innen an der Umfrage
+
+Die folgende Übersicht beinhaltet alle Personen, die in der Umfrage mindestens eine der Fragen zu den Maßnahmen beantwortet haben.
 
 ```{r}
 dat %>% tbl_summary(include = c(Geschlecht, Rolle))
 ```
 
-# Wichtigkeit der Maßnahmen
+## Wichtigkeit der Maßnahmen
 
-```{r}
-#| eval: false
-dat_long %>%
-  reactable(filterable = TRUE, searchable = TRUE,
-    groupBy = c("Rolle", "Geschlecht"),
-    columns = list(
-      response = colDef(name = "M", aggregate = "mean"),
-      response = colDef(name = "SD", aggregate = "sd")
-      ))
+Die folgende Übersicht zeigt die Itemantworten gemeinsam für alle Teilnehmer:innen sowie unterteilt nach Rolle oder Geschlecht.
 
-dat_long %>%
-  select(Item, response) %>%
-  reactable(filterable = TRUE,
-    groupBy = "Item",
-    columns = list(
-      response = colDef(cell = function(values) {
-    sparkline(values, type = "bar")
-  })
-    ))
-```
+- Die Maßnahmen sind standardmäßig nach dem Mittelwert der Itemantworten sortiert.
+- Das Antwortformat der Befragung ging von *"gar nicht wichtig" (1)* bis *"besonders wichtig" (5)*.
+- Durch klicken auf einen Spaltennamen können Sie die Maßnahmen aufsteigend oder absteigend neu sortieren.
 
+Genauere Informationen zu den Maßnahmen können Sie [hier](https://www.dgps.de/fileadmin/user_upload/PDF/Berichte/Bericht_AMWF20230626.pdf) im Bericht der DGPs nachlesen.
 
-```{r}
-#| eval: false
+::: {.callout-tip}
+## Hinweis
 
-dat_long %>%
-  group_by(Item, Label) %>%
-  summarize(
-    M = mean(response[response %in% 1:5]),
-    SD = sd(response[response %in% 1:5]),
-    N = sum(response %in% 1:5),
-    Keine_Aussage = sum(response == -1),
-    Kat_1 = sum(response == 1),
-    Kat_2 = sum(response == 2),
-    Kat_3 = sum(response == 3),
-    Kat_4 = sum(response == 4),
-    Kat_5 = sum(response == 5), .groups = "drop") %>%
-  arrange(desc(M)) %>%
-  gt() %>%
-  cols_nanoplot(columns = Kat_1:Kat_5,
-    plot_type = "bar", new_col_name = "Verteilung") %>%
-  cols_hide(c(Item, Kat_1:Kat_5)) %>%
-  cols_move(columns = Verteilung, after = N) %>%
-  cols_label(Keine_Aussage = "Enthaltung",
-    Label = "Maßnahme") %>%
-  fmt_number(columns = c(M, SD)) %>%
-  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
-```
-
+Mithilfe des Suchfeldes können Sie die Maßnahmen nach **Stichworten** durchsuchen. Sie können auch nur Items aus einer bestimmten **Kategorie** anzeigen lassen (z.B. suchen nach *P1:*).
+:::
 
 ::: {.panel-tabset}
 
@@ -136,8 +100,12 @@ dat_long %>%
   cols_label(Keine_Aussage = "Enthaltung",
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
-  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  opt_interactive(active = TRUE, use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Alle Teilnehmer:innen",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 ## Nur Post Docs
@@ -166,7 +134,11 @@ dat_long %>%
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
   opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Nur Post Docs/Akademische Rät:innen",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 ## Nur Promovierende
@@ -195,7 +167,11 @@ dat_long %>%
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
   opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Nur Promovierende",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 ## Nur Studierende
@@ -224,7 +200,11 @@ dat_long %>%
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
   opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Nur Studierende",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 
@@ -254,7 +234,11 @@ dat_long %>%
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
   opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Nur Frauen",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 ## Nur Männer
@@ -283,7 +267,11 @@ dat_long %>%
     Label = "Maßnahme") %>%
   fmt_number(columns = c(M, SD)) %>%
   opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
-  cols_width(Label ~ px(500))
+  cols_width(Label ~ px(500)) %>%
+  tab_header(
+    title = "Nur Männer",
+    subtitle = md('*N* = Anzahl Antworten von 1 bis 5; *Enthaltung* = Anzahl Antworten "Kann keine Aussage treffen"')
+  )
 ```
 
 :::
