@@ -16,24 +16,39 @@ library(tidyverse)
 library(readxl)
 library(gt)
 library(gtsummary)
+library(reactable)
+library(reactablefmtr)
+library(sparkline)
 ```
 
 ```{r}
 cnames <- read_excel("Daten_Umfrage.xlsx", n_max = 0) %>% colnames()
-clabels <- read_excel("Daten_Umfrage.xlsx", range = "A2:DM2") %>% colnames()
+#clabels <- read_excel("Daten_Umfrage.xlsx", range = "A2:DM2") %>% colnames()
 dat_labels <- read_excel("Daten_Umfrage.xlsx", n_max = 1)
+dat_labels <- dat_labels %>% rename(Geschlecht = SD01, Rolle = SD02)
+
 dat <- read_excel("Daten_Umfrage.xlsx", skip = 2, col_names = cnames)
 dat <- dat %>% rename(Geschlecht = SD01, Rolle = SD02)
 
 dat$Geschlecht <- factor(dat$Geschlecht, levels = c(1, 2, 3, 4, -9), labels = c("männlich", "weiblich", "divers", "ich möchte keine Angabe machen", "nicht beantwortet"))
 dat$Rolle <- factor(dat$Rolle, levels = c(1, 2, 3, -9), labels = c("Studierende:r", "Promovierende:r", "Post Doc/Akademische:r Rät:in", "nicht beantwortet"))
 
-dat_items <- dat %>% 
-  select(7:92) %>%
-  pivot_longer(everything(), names_to = "Item", values_to = "response") %>%
-  na.omit() 
-dat_item_labels <- dat_labels %>% select(7:92) %>%
-  pivot_longer(everything(), names_to = "Item", values_to = "Label")
+dat <- dat %>%
+  filter(if_any(P101_01:Q201_08, ~ !is.na(.x)))
+  
+
+dat_long <- dat %>% 
+  select(P101_01:Q201_08, Geschlecht, Rolle) %>%
+  pivot_longer(P101_01:Q201_08, names_to = "Item", values_to = "response") %>%
+  na.omit() %>%
+  left_join(dat_labels %>% pivot_longer(everything(), names_to = "Item", values_to = "Label"), by = "Item")
+
+# dat_items <- dat %>% 
+#   select(P101_01:Q201_08, Geschlecht, Rolle) %>%
+#   pivot_longer(P101_01:Q201_08, names_to = "Item", values_to = "response") %>%
+#   na.omit() 
+# dat_item_labels <- dat_labels %>% select(P101_01:Q201_08, Geschlecht, Rolle) %>%
+#   pivot_longer(everything(), names_to = "Item", values_to = "Label")
 ```
 
 # Teilnehmer:innen
@@ -44,11 +59,33 @@ dat %>% tbl_summary(include = c(Geschlecht, Rolle))
 
 # Wichtigkeit der Maßnahmen
 
-## Für alle Teilnehmer:innen
+```{r}
+#| eval: false
+dat_long %>%
+  reactable(filterable = TRUE, searchable = TRUE,
+    groupBy = c("Rolle", "Geschlecht"),
+    columns = list(
+      response = colDef(name = "M", aggregate = "mean"),
+      response = colDef(name = "SD", aggregate = "sd")
+      ))
+
+dat_long %>%
+  select(Item, response) %>%
+  reactable(filterable = TRUE,
+    groupBy = "Item",
+    columns = list(
+      response = colDef(cell = function(values) {
+    sparkline(values, type = "bar")
+  })
+    ))
+```
+
 
 ```{r}
-dat_sum <- dat_items %>%
-  group_by(Item) %>%
+#| eval: false
+
+dat_long %>%
+  group_by(Item, Label) %>%
   summarize(
     M = mean(response[response %in% 1:5]),
     SD = sd(response[response %in% 1:5]),
@@ -58,8 +95,7 @@ dat_sum <- dat_items %>%
     Kat_2 = sum(response == 2),
     Kat_3 = sum(response == 3),
     Kat_4 = sum(response == 4),
-    Kat_5 = sum(response == 5))
-dat_item_labels %>% left_join(dat_sum, by = "Item") %>%
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
   arrange(desc(M)) %>%
   gt() %>%
   cols_nanoplot(columns = Kat_1:Kat_5,
@@ -73,4 +109,182 @@ dat_item_labels %>% left_join(dat_sum, by = "Item") %>%
   cols_width(Label ~ px(500))
 ```
 
+
+::: {.panel-tabset}
+
+## Alle Teilnehmer:innen
+
+```{r}
+dat_long %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+## Nur Post Docs
+
+```{r}
+dat_long %>%
+  filter(Rolle == "Post Doc/Akademische:r Rät:in") %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+## Nur Promovierende
+
+```{r}
+dat_long %>%
+  filter(Rolle == "Promovierende:r") %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+## Nur Studierende
+
+```{r}
+dat_long %>%
+  filter(Rolle == "Studierende:r") %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+
+## Nur Frauen
+
+```{r}
+dat_long %>%
+  filter(Geschlecht == "weiblich") %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+## Nur Männer
+
+```{r}
+dat_long %>%
+  filter(Geschlecht == "männlich") %>%
+  group_by(Item, Label) %>%
+  summarize(
+    M = mean(response[response %in% 1:5]),
+    SD = sd(response[response %in% 1:5]),
+    N = sum(response %in% 1:5),
+    Keine_Aussage = sum(response == -1),
+    Kat_1 = sum(response == 1),
+    Kat_2 = sum(response == 2),
+    Kat_3 = sum(response == 3),
+    Kat_4 = sum(response == 4),
+    Kat_5 = sum(response == 5), .groups = "drop") %>%
+  arrange(desc(M)) %>%
+  gt() %>%
+  cols_nanoplot(columns = Kat_1:Kat_5,
+    plot_type = "bar", new_col_name = "Verteilung") %>%
+  cols_hide(c(Item, Kat_1:Kat_5)) %>%
+  cols_move(columns = Verteilung, after = N) %>%
+  cols_label(Keine_Aussage = "Enthaltung",
+    Label = "Maßnahme") %>%
+  fmt_number(columns = c(M, SD)) %>%
+  opt_interactive(use_search = TRUE, use_highlight = TRUE) %>%
+  cols_width(Label ~ px(500))
+```
+
+:::
 
