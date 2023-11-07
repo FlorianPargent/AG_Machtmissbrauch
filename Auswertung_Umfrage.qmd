@@ -2,6 +2,7 @@
 title: "Auswertung der Umfrage der AG Machtmissbrauch"
 author: "Florian Pargent im Auftrag der AG Machtmissbrauch"
 date: today
+lang: de
 format:
   html:
     embed-resources: true
@@ -45,7 +46,7 @@ dat_long <- dat %>%
 
 ## Befragung des Mittelbaus durch die AG Machtmissbrauch
 
-Die AG Machtmissbrauch hat im Zeitraum vom 16.10.2023 bis 28.10.2023 den Mittelbau des Departments Psychologie der Ludwig-Maximilians-Universität München befragt. In der Umfrage wurden die Teilnehmer:innen gebeten die Wichtigkeit potenzieller Maßnahmen zur Verbesserung des Wissenschaftsbetriebs hinsichtlich der Themen Anreizsysteme, Machtmissbruach und wissenschaftliches Fehlverhalten zu bewerten.
+Die AG Machtmissbrauch hat im Zeitraum vom 16.10.2023 bis 28.10.2023 den Mittelbau des Departments Psychologie der Ludwig-Maximilians-Universität München befragt. In der Umfrage wurden die Teilnehmer:innen gebeten die Wichtigkeit potenzieller Maßnahmen zur Verbesserung des Wissenschaftsbetriebs hinsichtlich der Themen Anreizsysteme, Machtmissbrauch und wissenschaftliches Fehlverhalten zu bewerten.
 
 Die in der Umfrage aufgelisteten Maßnahmen wurden dem [Bericht der Kommission Anreizsystem, Machtmissbrauch und wissenschaftliches Fehlverhalten der DPGs](https://www.dgps.de/fileadmin/user_upload/PDF/Berichte/Bericht_AMWF20230626.pdf) entnommen.
 Im Folgenden finden Sie eine Auswertung der Ergebnisse der Befragung.
@@ -60,18 +61,18 @@ dat %>% tbl_summary(include = c(Geschlecht, Rolle))
 
 ## Wichtigkeit der Maßnahmen
 
-Die folgende Übersicht zeigt die Itemantworten gemeinsam für alle Teilnehmer:innen sowie unterteilt nach Rolle oder Geschlecht.
+Die folgende Übersicht zeigt die bewertete Wichtigkeit der Maßnahmen gemeinsam für alle Teilnehmer:innen sowie unterteilt nach Rolle oder Geschlecht.
 
 - Die Maßnahmen sind standardmäßig nach dem Mittelwert der Itemantworten sortiert.
 - Das Antwortformat der Befragung ging von *"gar nicht wichtig" (1)* bis *"besonders wichtig" (5)*.
 - Durch klicken auf einen Spaltennamen können Sie die Maßnahmen aufsteigend oder absteigend neu sortieren.
 
-Genauere Informationen zu den Maßnahmen können Sie [hier](https://www.dgps.de/fileadmin/user_upload/PDF/Berichte/Bericht_AMWF20230626.pdf) im Bericht der DGPs nachlesen.
+Genauere Informationen zu den einzelnen Maßnahmen können Sie [hier](https://www.dgps.de/fileadmin/user_upload/PDF/Berichte/Bericht_AMWF20230626.pdf) im Bericht der DGPs nachlesen.
 
 ::: {.callout-tip}
 ## Hinweis
 
-Mithilfe des Suchfeldes können Sie die Maßnahmen nach **Stichworten** durchsuchen. Sie können auch nur Items aus einer bestimmten **Kategorie** anzeigen lassen (z.B. suchen nach *P1:*).
+Mithilfe des Suchfeldes können Sie die Maßnahmen nach **Stichworten** durchsuchen. Sie können auch nur Maßnahmen aus einer bestimmten **Kategorie** anzeigen lassen, indem Sie z.B. nach *"P1:"* suchen.
 :::
 
 ::: {.panel-tabset}
